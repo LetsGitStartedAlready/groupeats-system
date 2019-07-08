@@ -1,0 +1,12 @@
+Person 1
+Chinese Indian French
+American Italian Japanese
+Person 2
+Indian French Spanish
+Chinese Japanese Korean
+Person 3
+American Indian Japanese
+Chinese French Spanish
+Person 4
+Italian American Korean
+Mexican Spanish Indian

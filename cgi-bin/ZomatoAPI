@@ -1,0 +1,114 @@
+import requests
+from pprint import pprint
+import json
+
+
+class ZomatoAPI():
+	def __init__(self):
+		self.baseUrl = "https://developers.zomato.com/api/v2.1/"
+		self.categoriesUrl = self.baseUrl + "categories"
+		self.citiesUrl = self.baseUrl + "cities"
+		self.searchUrl = self.baseUrl + "search"
+		self.cuisinesUrl = self.baseUrl + "cuisines"
+		self.reviewUrl = self.baseUrl + "reviews"
+		self.key = "A1031b4c142a736a6b666b9fba588131"
+		self.headers = {
+                "User-agent": "curl/7.43.0",
+                "Content-type": "application/json",
+                "X-Zomato-API-Key": self.key }
+		self.allCuisinesDict = requests.get(url=self.cuisinesUrl, params = {"city_id":"280"}, headers=self.headers).json().get("cuisines")	
+		#pprint(self.allCuisinesDict)
+
+	def cities(self, options): #Get cityID from lat and lon
+		response = requests.get(url=self.citiesUrl, params = options, headers=self.headers)
+		return response.json()
+
+
+
+	def cuisinesByLocation(self, lat, lon): #list of cuisines in a city
+		params = {"lat": lat, "lon": lon}
+		responseJson = requests.get(url=self.cuisinesUrl, params = params, headers=self.headers).json()
+		return responseJson
+
+#	def cuisinesByRadius(self, lat, lon, radius):
+
+
+	def findCuisineID(self, cuisineName): #takes in a cuisine name and spits out its id
+		correctID = 0
+		found = False
+		for cuisine in self.allCuisinesDict:
+			cuisineInfo = cuisine.get("cuisine")
+			if(cuisineInfo.get("cuisine_name") == cuisineName):
+				correctID = cuisineInfo.get("cuisine_id")
+				found = True
+				break
+		if(found == True and correctID != 0):
+			return correctID
+		else: return "Cuisine ID Not Found"
+
+
+
+	def restaurantsByCuisine(self, cuisineName, lat, lon, radius): #return restaurant by cuisine
+		cuisineID = self.findCuisineID(cuisineName)
+		params = {"lat": lat, "lon": lon, "radius": radius, "cuisines" : cuisineID}
+		restaurantJson = requests.get(url= self.searchUrl, params = params, headers=self.headers).json()
+		return restaurantJson
+
+
+	def cuisineTypeByRadius(self, lat, lon, radius): #return a dictionary that contain cuisine types and how many res of each type
+		params = {"lat": lat, "lon": lon, "radius": radius}
+		jsonFile = requests.get(url= self.searchUrl, params = params, headers=self.headers).json()
+
+		resultDict = {}
+		noResult = jsonFile["results_found"] #total number of result
+
+		index = 0
+		while(index < noResult): #a loop is required to go through multiple API calls
+			params = {"lat": lat, "lon": lon, "radius": radius, "start" : index}
+			jsonFile = requests.get(url= self.searchUrl, params = params, headers=self.headers).json()
+
+			#Do the shit
+			jsonFile = jsonFile.get("restaurants")
+			for item in jsonFile:
+				cuisines = item.get("restaurant").get("cuisines")
+				cuisineSplit = cuisines.split(", ")
+				for cuisine in cuisineSplit:
+					try:
+						resultDict[cuisine] += 1
+					except KeyError:
+						resultDict[cuisine] = 1
+
+			index = index + 20
+
+
+
+		print(noResult)
+		return resultDict
+
+
+
+	def findReview(self, restaurantID):
+		params = {"res_id" : restaurantID}
+		reviewJson = requests.get(url= self.reviewUrl, params = params, headers=self.headers).json()
+		return reviewJson
+
+
+		
+
+
+
+
+
+
+zom = ZomatoAPI()
+#options = { "lat": "39.150", "lon" : "-123.2078"}
+resData = zom.cuisineTypeByRadius("39.15", "-123.2078", "6000")
+#print(zom.findReview("17546640"))
+#print(zom.findCuisineID("Vietnamese"))
+data = zom.cuisinesByLocation("39.150", "-123.2078")
+#pprint(zom.cities(options))
+
+with open("data_file.json", "w") as write_file:
+    newJson = json.dump(resData ,write_file)
+
+print(resData)
